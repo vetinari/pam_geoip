@@ -2,68 +2,11 @@ $Id$
 
 pam_geoip - GeoIP account management module for (Linux-)PAM
 
-pam_geoip.so
-============
 The PAM module provides the "account" hook only. To use this module, add a
 line like 
 
-  account required pam_geoip.so OPTIONS
+  account required pam_geoip.so [system_file=file] [geoip_db=file] \
+	[charset=name]
 
-OPTIONS can be zero or more of
- * system_file=/path/to/geoip.conf 
-     Default: /etc/security/geoip.conf
-   For the format of this file, see below.
-
- * geoip_db=/path/to/GeoIPCity.dat 
-     Default: /usr/local/share/GeoIP/GeoIPCity.dat
-   This must be a "GeoIP City Edition" file, see 
-      http://www.maxmind.com/app/city
-   and / or
-      http://www.maxmind.com/app/geolitecity
-   for more information.
- 
- * charset=CHARSET
-     Default: UTF-8
-   other possible value: iso-8859-1 (case insensitive). Sets the charset of
-   the geoip.conf file
-
-The first matching entry in the geoip.conf file wins, i.e. the action given
-in this line will be returned to PAM:
- * allow  => PAM_SUCCESS
- * deny   => PAM_PERM_DENIED
- * ignore => PAM_IGNORE
-
-geoip.conf
-==========
-The configuration file (by default /etc/security/geoip.conf) contains lines
-of four items: 
- * domain: user name, group name (prefixed by "@") or "*" for any user/group
- * service: a list of services (or "*") separated by "," (NO spaces allowed)
- * action: "allow", "deny" or "ignore" (see above)
- * location: GeoIP location, separated by ";".  
-    This can be:
-      - a country code (uppercased two charachers, "*" or "UNKNOWN")
-      - a country code like above and "," and a city name (or "*") 
-      - a distance from a given point, e.g. "50.0 { 51.513888, 7.465277 }" 
-
-    The location part can use spaces, but note: spaces in city / country
-    names must be given as in the DB, i.e. "Mountain View", NOT 
-    "Moutain  View" or "MountainView" (w/o the "" of course).
-
-    The distance is measured in kilometers. In the above example we match
-    a circle of 100 km diameter around Dortmund, Germany (51° 30′ 50″ north, 
-    7° 27′ 50″ east (51.513888888889, 7.465277777777876)). Coordinates west
-    and south are given as negative values. Values must be given in decimal.
-
-Example:
-#
-# /etc/security/geoip.conf - config for pam_geoip.so
-#
-
-#<domain>   <service>  <action>  <location>
-@wheel      sshd       allow     DE,* ; SE , Nybro; SE, Emmaboda; SE,Växjö
-someuser    sshd       allow     50.0 { 51.513888, 7.465277 }; DE,Köln;
-otheruser   sshd       allow     SE,Umeå; DK, København
-*           *          ignore    UNKNOWN
-*           *          deny      *
-## END
+Requirements: 
+	libgeoip(-dev)
