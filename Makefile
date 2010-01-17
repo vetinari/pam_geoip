@@ -7,7 +7,9 @@ MODULE=pam_geoip.so
 LDFLAGS=-lpam -lGeoIP -lm
 CC=gcc -Wall
 
-all: pam_geoip.so doc
+all: module doc
+
+module: pam_geoip.so
 
 doc: $(MANPAGES)
 
