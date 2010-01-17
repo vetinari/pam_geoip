@@ -1,0 +1,11 @@
+TODO:
+=====
+* radius around given longitude/latitude (done)
+* ipv6
+* set default via argument (instead of hardcoded PAM_PERM_DENY)
+* UTF-8 (default charset in GeoIP is iso-8859-1), probably as default, 
+  argument option to set to iso. (done)
+
+NOT TODO:
+=========
+* match hostnames / IPs, pam_access can do this
