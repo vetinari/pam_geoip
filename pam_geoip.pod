@@ -1,0 +1,70 @@
+
+=encoding utf8
+
+=cut
+
+$Id$
+
+=head1 NAME
+
+pam_geoip - GeoIP account management module for (Linux-)PAM
+
+=head1 SYNOPSIS
+
+ account required pam_geoip.so OPTIONS
+
+=head1 DESCRIPTION
+
+The B<pam_geoip> module provides a check if the remote logged in user is
+logged in from a given location. This is similar to L<pam_access(8)>, but
+uses a GeoIP database instead.
+
+Ths PAM module provides the I<account> hook only. 
+
+The first matching entry in the F<geoip.conf> file wins, i.e. the action given
+in this line will be returned to PAM:
+
+=over 4
+
+=item allow
+
+PAM_SUCCESS
+
+=item deny
+
+PAM_PERM_DENIED
+
+=item ignore
+
+PAM_IGNORE
+
+=back
+
+I<OPTIONS> can be zero or more of
+
+=over 4
+
+=item system_file=/path/to/geoip.conf 
+
+The configuration file for B<pam_geoip>. Default is 
+F</etc/security/geoip.conf>. For the format of this file, see L<geoip.conf(5)>.
+
+=item geoip_db=/path/to/GeoIPCity.dat 
+
+The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCity.dat>. 
+This must be a "GeoIP City Edition" file, see
+L<http://www.maxmind.com/app/city> and / or
+L<http://www.maxmind.com/app/geolitecity> for more information.
+ 
+=item charset=CHARSET
+
+The charset of the config file, defaults to C<UTF-8>. Other possible value
+is C<iso-8859-1> (case insensitive). 
+
+=back
+
+=head1 SEE ALSO
+
+L<geoip.conf(5)>, L<pam_access(8)>, L<pam.d(5)>, L<pam(7)>
+
+=cut
