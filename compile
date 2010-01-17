@@ -1,6 +1,0 @@
-#!/bin/sh
-set -e
-rm -f pam_geoip.so
-gcc -Wall -fPIC -c pam_geoip.c
-gcc -Wall -shared -o pam_geoip.so pam_geoip.o -lpam -lGeoIP -lm
-ls -la pam_geoip.so
