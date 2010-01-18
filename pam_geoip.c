@@ -15,7 +15,6 @@
 #include <syslog.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <iconv.h>
 #include <math.h>
 
 #include <GeoIP.h>
@@ -27,9 +26,6 @@
 #define MASK_TOO_LONG -2
 #define MASK_NOT_NUM  -3
 #define MASK_TOO_BIG  -4
-
-#define PAM_GEOIP_CHARSET_UTF8       1
-#define PAM_GEOIP_CHARSET_ISO_8859_1 2
 
 #include <security/pam_modutil.h> /* pam_modutil_user_in_group_nam_nam() */
 #include <security/pam_ext.h>     /* pam_syslog() */
@@ -56,36 +52,8 @@ struct options {
     char *system_file;
     char *geoip_db;
     int  charset;
+    int  debug;
 };
-
-char *
-to_utf8(pam_handle_t *pamh, char *in) {
-    char outbuf[4*LINE_LENGTH];
-    char *out;
-    iconv_t cd;
-    size_t converted, in_left, out_left;
-
-    in_left  = strlen(in);
-    out_left = 4 * LINE_LENGTH;
-
-    cd = iconv_open("UTF-8//", "ISO-8859-1//");
-    if (cd == (iconv_t)-1) {
-        pam_syslog(pamh, LOG_CRIT, "iconv_open failed: %m");
-        return NULL;
-    }
-
-    out = outbuf;
-    memset(out, 0, 4*LINE_LENGTH);
-
-    converted = iconv(cd, &in, &in_left, &out, &out_left);
-    if (converted == -1) {
-        pam_syslog(pamh, LOG_CRIT, "iconv failed: %m");
-        return NULL;
-    }
-    iconv_close(cd);
-    out = outbuf;
-    return out;
-}
 
 struct locations *
 parse_locations(pam_handle_t *pamh, 
@@ -101,7 +69,6 @@ parse_locations(pam_handle_t *pamh,
     float latitude;
     float longitude;
     float radius;
-    char *country_utf8, *city_utf8;
 
     single = string;
     while (*single) {
@@ -138,7 +105,6 @@ parse_locations(pam_handle_t *pamh,
             == 3)
         {
             if (fabsf(latitude) > 90.0 || fabsf(longitude) > 180.0) {
-
                 pam_syslog(pamh, LOG_WARNING, 
                         "illegal value(s) in LAT/LONG: %f, %f", 
                         latitude, longitude);
@@ -188,22 +154,6 @@ parse_locations(pam_handle_t *pamh,
             entry->city      = NULL;
         }
         else {
-            if (opts->charset == PAM_GEOIP_CHARSET_ISO_8859_1) {
-                country_utf8 = to_utf8(pamh, country);
-                if (country_utf8 == NULL) {
-                    free(entry);
-                    return NULL;
-                }
-                country = strdup(country_utf8); /* TODO: strdup->malloc */
-
-                city_utf8 = to_utf8(pamh, city);
-                if (city_utf8 == NULL) {
-                    free(entry);
-                    return NULL;
-                }
-                city = strdup(city_utf8); /* TODO: strdup->malloc */
-            }
-
             entry->country = strdup(country);
             if (entry->country == NULL) {
                 pam_syslog(pamh, LOG_CRIT, "failed to malloc: %m");
@@ -324,6 +274,7 @@ double /* see also: http://en.wikipedia.org/wiki/Great-circle_distance */
 calc_distance(float latitude, float longitude, float geo_lat, float geo_long) {
     double distance;
     float earth = 6367.46; /* km avg radius */
+    /* convert grad to rad: */
     double la1 = latitude  * M_PI / 180.0,
            la2 = geo_lat   * M_PI / 180.0,
            lo1 = longitude * M_PI / 180.0,
@@ -379,8 +330,10 @@ check_location(pam_handle_t *pamh,
             } 
         }
         else {
-            /* pam_syslog(pamh, LOG_INFO, "location: {%s,%s}, {%s,%s}", 
-                    list->country, list->city, geo->country, geo->city); */
+            if (opts->debug) 
+                pam_syslog(pamh, LOG_INFO, "location: (%s,%s) geoip: (%s,%s)", 
+                            list->country, list->city, geo->country, geo->city);
+
             if ( 
                 (list->country[0] == '*' || 
                  strcmp(list->country, geo->country) == 0) 
@@ -423,15 +376,18 @@ void _parse_args(pam_handle_t *pamh,
         else if (strncmp(argv[i], "charset=", 8) == 0) {
             if (argv[i]+8 != '\0') {
                 if (strncasecmp(argv[i]+8, "UTF-8", 5) == 0) {
-                    opts->charset = PAM_GEOIP_CHARSET_UTF8;
+                    opts->charset = GEOIP_CHARSET_UTF8;
                 }
                 else if (strncasecmp(argv[i]+8, "UTF8", 4) == 0) {
-                    opts->charset = PAM_GEOIP_CHARSET_UTF8;
+                    opts->charset = GEOIP_CHARSET_UTF8;
                 }
                 else if (strncasecmp(argv[i]+8, "iso-8859-1", 10) == 0) {
-                    opts->charset = PAM_GEOIP_CHARSET_ISO_8859_1;
+                    opts->charset = GEOIP_CHARSET_ISO_8859_1;
                 }
             }
+        }
+        else if (strncmp(argv[i], "debug", 5) == 0) {
+            opts->debug = 1;
         }
         else {
             pam_syslog(pamh, LOG_WARNING, "unknown parameter %s", argv[i]);
@@ -462,7 +418,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         pam_syslog(pamh, LOG_CRIT, "malloc error 'opts': %m");
         return PAM_SERVICE_ERR;
     }
-    opts->charset     = PAM_GEOIP_CHARSET_UTF8;
+    opts->charset     = GEOIP_CHARSET_UTF8;
+    opts->debug       = 0;
     opts->system_file = NULL; 
     opts->geoip_db    = NULL; 
 
@@ -514,13 +471,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     gi = GeoIP_open(opts->geoip_db, GEOIP_INDEX_CACHE);
     if (gi == NULL) {
-        pam_syslog(pamh, LOG_ERR, 
+        pam_syslog(pamh, LOG_CRIT, 
                         "failed to open geoip db (%s): %m", opts->geoip_db);
         free_opts(opts);
         free_locations(geo);
         return PAM_SERVICE_ERR;
     }
-    GeoIP_set_charset(gi, GEOIP_CHARSET_UTF8);
+    GeoIP_set_charset(gi, opts->charset);
 
     /* TODO: also check IPv6 */
     rec = GeoIP_record_by_name(gi, rhost); 
@@ -545,14 +502,16 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         geo->longitude = rec->longitude;
     }
 
-    pam_syslog(pamh, LOG_DEBUG, "GeoIP record for %s: %s,%s", 
+    if (opts->debug)
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP record for %s: %s,%s", 
                                 rhost, geo->country, geo->city);
-    if (strcmp(geo->country, "UNKNOWN") != 0)
+
+    if (opts->debug && strcmp(geo->country, "UNKNOWN") != 0)
         pam_syslog(pamh, LOG_DEBUG, "GeoIP coordinates for %s: %f,%f", 
                                     rhost, geo->latitude, geo->longitude);
 
     if ((fh = fopen(opts->system_file, "r")) == NULL) {
-        pam_syslog(pamh, LOG_ERR, "error opening %s: %m", opts->system_file);
+        pam_syslog(pamh, LOG_CRIT, "error opening %s: %m", opts->system_file);
         if (gi) GeoIP_delete(gi);
         if (rec) GeoIPRecord_delete(rec);
         free_opts(opts);
@@ -608,23 +567,25 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     fclose(fh);
     if (gi) GeoIP_delete(gi);
     if (rec) GeoIPRecord_delete(rec);
-    free_opts(opts);
     free_locations(geo);
 
-    switch (action) {
-        case PAM_SUCCESS:
-            pam_syslog(pamh, LOG_DEBUG, "location allowed");
-            break;
-        case PAM_PERM_DENIED:
-            pam_syslog(pamh, LOG_DEBUG, "location denied");
-            break;
-        case PAM_IGNORE:
-            pam_syslog(pamh, LOG_DEBUG, "location ignored");
-            break;
-        default: /* should not happen */
-            pam_syslog(pamh, LOG_DEBUG, "location status: %d", action);
-            break;
-    };
+    if (opts->debug) {
+        switch (action) {
+            case PAM_SUCCESS:
+                pam_syslog(pamh, LOG_DEBUG, "location allowed");
+                break;
+            case PAM_PERM_DENIED:
+                pam_syslog(pamh, LOG_DEBUG, "location denied");
+                break;
+            case PAM_IGNORE:
+                pam_syslog(pamh, LOG_DEBUG, "location ignored");
+                break;
+            default: /* should not happen */
+                pam_syslog(pamh, LOG_DEBUG, "location status: %d", action);
+                break;
+        };
+    }
+    free_opts(opts);
     return action;
 }
 
