@@ -61,6 +61,16 @@ L<http://www.maxmind.com/app/geolitecity> for more information.
 The charset of the config file, defaults to C<UTF-8>. Other possible value
 is C<iso-8859-1> (case insensitive). 
 
+=item action=ACTION
+
+Sets the default action if no location matches. Default is C<deny>. Other
+possible values are C<allow> or C<ignore>. For the meanigns of these, see
+above.
+
+=item debug
+
+Adds some debugging output to syslog.
+
 =back
 
 =head1 SEE ALSO

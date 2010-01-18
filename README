@@ -6,7 +6,7 @@ The PAM module provides the "account" hook only. To use this module, add a
 line like 
 
   account required pam_geoip.so [system_file=file] [geoip_db=file] \
-	[charset=name]
+	[charset=name] [action=name] [debug]
 
 Requirements: 
 

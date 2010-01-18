@@ -52,6 +52,7 @@ struct options {
     char *system_file;
     char *geoip_db;
     int  charset;
+    int  action;
     int  debug;
 };
 
@@ -389,6 +390,19 @@ void _parse_args(pam_handle_t *pamh,
         else if (strncmp(argv[i], "debug", 5) == 0) {
             opts->debug = 1;
         }
+        else if (strncmp(argv[i], "action=", 7) == 0) {
+            if (argv[i]+7 != '\0') {
+                if (strncmp(argv[i]+7, "allow", 5) == 0) {
+                    opts->action = PAM_SUCCESS;
+                }
+                else if (strncmp(argv[i]+7, "deny", 4) == 0) {
+                    opts->action = PAM_PERM_DENIED;
+                }
+                else if (strncmp(argv[i]+7, "ignore", 6) == 0) {
+                    opts->action = PAM_IGNORE;
+                }
+            }
+        }
         else {
             pam_syslog(pamh, LOG_WARNING, "unknown parameter %s", argv[i]);
         }
@@ -420,6 +434,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
     opts->charset     = GEOIP_CHARSET_UTF8;
     opts->debug       = 0;
+    opts->action      = PAM_PERM_DENIED;
     opts->system_file = NULL; 
     opts->geoip_db    = NULL; 
 
@@ -518,14 +533,14 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         return PAM_SERVICE_ERR;
     }
 
-    action = PAM_PERM_DENIED; /* TODO: set default via argv */
+    action = opts->action;
     while (fgets(buf, LINE_LENGTH, fh) != NULL) {
         char *line, *ptr;
         char domain[LINE_LENGTH], 
              service[LINE_LENGTH], 
              location[LINE_LENGTH];
         
-        action = PAM_PERM_DENIED;/* TODO: set default via argv */
+        action = opts->action;
         line   = buf;
         /* skip the leading white space */
         while (*line && isspace(*line))
@@ -545,7 +560,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
         action = parse_line(pamh, line, domain, service, location);
         if (action < 0) { /* parsing failed */ 
-            action = PAM_PERM_DENIED;/* TODO: set default via argv */
+            action = opts->action;
             continue;
         }
 
