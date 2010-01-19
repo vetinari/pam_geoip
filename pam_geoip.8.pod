@@ -11,18 +11,27 @@ pam_geoip - GeoIP account management module for (Linux-)PAM
 
 =head1 SYNOPSIS
 
- account required pam_geoip.so OPTIONS
+ account required pam_geoip.so [system_file=file] [geoip_db=file]
+        [charset=name] [action=name] [debug]
+
 
 =head1 DESCRIPTION
 
 The B<pam_geoip> module provides a check if the remote logged in user is
 logged in from a given location. This is similar to L<pam_access(8)>, but
-uses a GeoIP database instead.
+uses a GeoIP City database instead of host name / IP matching.
+
+The matching is done on given country and city names or on distance from
+a given location.
 
 Ths PAM module provides the I<account> hook only. 
 
-The first matching entry in the F<geoip.conf> file wins, i.e. the action given
-in this line will be returned to PAM:
+If an IP is not found in the GeoIP database, the location to match against
+is set to C<UNKNOWN, *>, no distance matching is possible for these, 
+of course.
+
+The first matching entry in the L<geoip.conf(5)> file wins, i.e. the action
+given in this line will be returned to PAM:
 
 =over 4
 
@@ -40,7 +49,9 @@ PAM_IGNORE
 
 =back
 
-I<OPTIONS> can be zero or more of
+=head1 OPTIONS
+
+These options may be given in the PAM config file as parameters:
 
 =over 4
 
@@ -73,8 +84,26 @@ Adds some debugging output to syslog.
 
 =back
 
+=head1 FILES
+
+=over 4
+
+=item /etc/security/geoip.conf 
+
+The default configuration file for this module
+
+=item /etc/pam.d/*
+
+The L<PAM(7)> configuration files
+
+=back
+
 =head1 SEE ALSO
 
 L<geoip.conf(5)>, L<pam_access(8)>, L<pam.d(5)>, L<pam(7)>
+
+=head1 AUTHOR
+
+Hanno Hecker C<E<lt>vetinari@ankh-morp.orgE<gt>>
 
 =cut

@@ -12,7 +12,15 @@ geoip.conf - config file for the PAM module pam_geoip
 =head1 DESCRIPTION
 
 The configuration file (by default /etc/security/geoip.conf) contains lines
-of four items: 
+of four items: domain, service, action and location. For a description of
+these, see below. 
+
+If you need to match on city names containing non L<ascii(7)> charachters
+(like C<DE, Köln> or C<SE, Växjö>), you can set the character set to use
+in the module's arguments: C<iso-8859-1> or C<UTF-8> (the default). 
+
+Any (sub-)item except for I<action> or the distance matching can use a single
+asterisk (C<*>) to match any value.
 
 =over 4
 
@@ -98,5 +106,9 @@ and south are given as negative values. Values must be given in decimal.
 =head1 SEE ALSO
 
 L<pam_geoip(8)>, L<pam_access(8)>, L<pam.d(5)>, L<pam(7)>
+
+=head1 AUTHOR
+
+Hanno Hecker C<E<lt>vetinari@ankh-morp.orgE<gt>>
 
 =cut
