@@ -9,6 +9,8 @@ OBJECTS=pam_geoip.o
 MODULE=pam_geoip.so
 LDFLAGS=-lpam -lGeoIP -lm -shared
 CCFLAGS=-Wall
+PAM_LIB_DIR=$(DESTDIR)/lib/security
+INSTALL=/usr/bin/install
 
 all: module doc
 
@@ -29,9 +31,11 @@ pam_geoip.so: pam_geoip.o
 
 clean:
 	rm -f $(MANPAGES)
-	rm -f *.o
-	rm -f *.so
+	rm -f $(OBJECTS) $(MODULE) core *~
 
+install: $(MODULE)
+	$(INSTALL) -m 0755 -d $(PAM_LIB_DIR)
+	$(INSTALL) -m 0644 $(MODULE) $(PAM_LIB_DIR)
 ### dev targets:
 update:
 	svn update
