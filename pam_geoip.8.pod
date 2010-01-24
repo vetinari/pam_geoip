@@ -30,6 +30,10 @@ If an IP is not found in the GeoIP database, the location to match against
 is set to C<UNKNOWN, *>, no distance matching is possible for these, 
 of course.
 
+If a file named F</etc/security/geoip.SERVICE.conf> (with SERVICE being the
+name of the PAM service) can be opened, this is used instead of the default
+F</etc/security/geoip.conf>.
+
 The first matching entry in the L<geoip.conf(5)> file wins, i.e. the action
 given in this line will be returned to PAM:
 
@@ -91,6 +95,10 @@ Adds some debugging output to syslog.
 =item /etc/security/geoip.conf 
 
 The default configuration file for this module
+
+=item /etc/security/geoip.SERVICE.conf 
+
+The default configuration file for PAM service SERVICE
 
 =item /etc/pam.d/*
 

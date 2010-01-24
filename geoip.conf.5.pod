@@ -15,6 +15,11 @@ The configuration file (by default /etc/security/geoip.conf) contains lines
 of four items: domain, service, action and location. For a description of
 these, see below. 
 
+When the service specific configuration file 
+(F</etc/security/geoip.SERVICE.conf>) is used, the I<service> column must 
+not be present. If this file is present, the default file is not used, even
+if present on the command line as C<system_file=/file/name>.
+
 If you need to match on city names containing non L<ascii(7)> charachters
 (like C<DE, Köln> or C<SE, Växjö>), you can set the character set to use
 in the module's arguments: C<iso-8859-1> or C<UTF-8> (the default). 
@@ -102,6 +107,17 @@ and south are given as negative values. Values must be given in decimal.
  *           *          ignore    UNKNOWN
  *           *          deny      *
  ## END
+
+or the same as F</etc/security/geoip.sshd.conf>:
+
+ #<domain>     <action>  <location>
+ @wheel        allow     DE,* ; SE , Nybro 
+ @wheel        allow     SE, Emmaboda; SE,Växjö
+ someuser      allow     50.0 { 51.513888, 7.465277 }
+ someuser      allow     DE,Köln
+ otheruser     allow     SE,Umeå; DK, København
+ *             ignore    UNKNOWN
+ *             deny      *
 
 =head1 SEE ALSO
 

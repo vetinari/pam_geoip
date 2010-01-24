@@ -72,6 +72,8 @@
 # define PATH_MAX 1024
 #endif /* PATH_MAX */
 
+#define SERVICE_FILE "/etc/security/geoip.%s.conf"
+
 /* GeoIP locations in geoip.conf */
 struct locations {
     char *country;
@@ -86,6 +88,8 @@ struct locations {
 struct options {
     char *system_file;
     char *geoip_db;
+    char *service_file; /* not on cmd line */
+    int  by_service;    /* if service_file can be opened this is true */
     int  charset;
     int  action;
     int  debug;
@@ -235,13 +239,55 @@ free_locations(struct locations *list) {
 
 void 
 free_opts(struct options *opts) {
-    free(opts->system_file);
-    free(opts->geoip_db);
+    if (opts->system_file)
+        free(opts->system_file);
+    if (opts->service_file)
+        free(opts->service_file);
+    if (opts->geoip_db)
+        free(opts->geoip_db);
     free(opts);
 }
 
+int parse_action(pam_handle_t *pamh, char *name) {
+    int action = -1;
+    if (strcmp(name, "deny") == 0)
+        action = PAM_PERM_DENIED;
+    else if (strcmp(name, "allow") == 0)
+        action = PAM_SUCCESS;
+    else if (strcmp(name, "ignore") == 0)
+        action = PAM_IGNORE; 
+    else
+        pam_syslog(pamh, LOG_WARNING, "invalid action '%s' - skipped", name);
+    
+    return action;
+}
+
 int 
-parse_line(pam_handle_t *pamh, 
+parse_line_srv(pam_handle_t *pamh, 
+           char *line, 
+           char *domain, 
+           char *location) 
+{
+    char *str;
+    char action[LINE_LENGTH+1];
+
+    if (sscanf(line, "%s %s %[^\n]", domain, action, location) != 3)
+    {
+        pam_syslog(pamh, LOG_WARNING, "invalid line '%s' - skipped", line);
+        return -1;
+    }
+    /* remove white space from the end */
+    str = location + strlen(location) - 1;
+    while (isspace(*str)) {
+            *str = '\0';
+            str--;
+    }
+    
+    return parse_action(pamh, action);
+}
+
+int 
+parse_line_sys(pam_handle_t *pamh, 
            char *line, 
            char *domain, 
            char *service, 
@@ -249,22 +295,10 @@ parse_line(pam_handle_t *pamh,
 {
     char *str;
     char action[LINE_LENGTH+1];
-    int  act;
 
     if (sscanf(line, "%s %s %s %[^\n]", domain, service, action, location) != 4)
     {
         pam_syslog(pamh, LOG_WARNING, "invalid line '%s' - skipped", line);
-        return -1;
-    }
-
-    if (strcmp(action, "deny") == 0)
-        act = PAM_PERM_DENIED;
-    else if (strcmp(action, "allow") == 0)
-        act = PAM_SUCCESS;
-    else if (strcmp(action, "ignore") == 0)
-        act = PAM_IGNORE; 
-    else {
-        pam_syslog(pamh, LOG_WARNING, "invalid action '%s' - skipped", action);
         return -1;
     }
 
@@ -275,7 +309,7 @@ parse_line(pam_handle_t *pamh,
             str--;
     }
     
-    return act;
+    return parse_action(pamh, action);
 }
 
 int check_service(pam_handle_t *pamh, char *services, char *srv) {
@@ -465,11 +499,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         pam_syslog(pamh, LOG_CRIT, "malloc error 'opts': %m");
         return PAM_SERVICE_ERR;
     }
-    opts->charset     = GEOIP_CHARSET_UTF8;
-    opts->debug       = 0;
-    opts->action      = PAM_PERM_DENIED;
-    opts->system_file = NULL; 
-    opts->geoip_db    = NULL; 
+    opts->charset      = GEOIP_CHARSET_UTF8;
+    opts->debug        = 0;
+    opts->action       = PAM_PERM_DENIED;
+    opts->system_file  = NULL; 
+    opts->service_file = NULL; 
+    opts->by_service   = 0;
+    opts->geoip_db     = NULL; 
 
     geo = malloc(sizeof(struct locations));
     if (geo == NULL) {
@@ -517,6 +553,18 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         return 0;
     }
 
+    opts->service_file = malloc(PATH_MAX);
+    if (opts->service_file == NULL) {
+        pam_syslog(pamh, LOG_CRIT, "malloc error 'service_file': %m");
+        free_opts(opts);
+        return PAM_SERVICE_ERR;
+    }
+    if (snprintf(opts->service_file, PATH_MAX-1, SERVICE_FILE, srv) < 0) {
+        pam_syslog(pamh, LOG_CRIT, "snprintf error 'service_file'");
+        free_opts(opts);
+        return PAM_SERVICE_ERR;
+    }
+
     gi = GeoIP_open(opts->geoip_db, GEOIP_INDEX_CACHE);
     if (gi == NULL) {
         pam_syslog(pamh, LOG_CRIT, 
@@ -558,12 +606,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         pam_syslog(pamh, LOG_DEBUG, "GeoIP coordinates for %s: %f,%f", 
                                     rhost, geo->latitude, geo->longitude);
 
-    if ((fh = fopen(opts->system_file, "r")) == NULL) {
-        pam_syslog(pamh, LOG_CRIT, "error opening %s: %m", opts->system_file);
-        if (gi) GeoIP_delete(gi);
-        if (rec) GeoIPRecord_delete(rec);
-        free_opts(opts);
-        return PAM_SERVICE_ERR;
+    if ((fh = fopen(opts->service_file, "r")) != NULL) {
+        opts->by_service = 1;
+        if (opts->debug)
+            pam_syslog(pamh, LOG_DEBUG, "using services file %s", 
+                                        opts->service_file);
+    }
+    else {
+        if ((fh = fopen(opts->system_file, "r")) == NULL) {
+            pam_syslog(pamh, LOG_CRIT, "error opening %s: %m", opts->system_file);
+            if (gi) GeoIP_delete(gi);
+            if (rec) GeoIPRecord_delete(rec);
+            free_opts(opts);
+            return PAM_SERVICE_ERR;
+        }
     }
 
     action = opts->action;
@@ -591,15 +647,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         if (!strlen(line))
             continue;
 
-        action = parse_line(pamh, line, domain, service, location);
+        if (opts->by_service)
+            action = parse_line_srv(pamh, line, domain, location);
+        else
+            action = parse_line_sys(pamh, line, domain, service, location);
         if (action < 0) { /* parsing failed */ 
             action = opts->action;
             continue;
         }
 
-        if (!check_service(pamh, service, srv))
-            continue;
-         
+        if (!opts->by_service) {
+            if (!check_service(pamh, service, srv))
+                continue;
+        }
+ 
         if ((strcmp(domain, "*") == 0) || (strcmp(username, domain) == 0)) {
             if (check_location(pamh, opts, location, geo))
                 break;

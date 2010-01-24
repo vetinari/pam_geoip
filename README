@@ -17,7 +17,7 @@ line like
 	[charset=name] [action=name] [debug]
 
 to the relevant files in /etc/pam.d/ and configure your 
-/etc/security/geoip.conf
+/etc/security/geoip.conf and/or /etc/security/geoip.SERVICE.conf.
 
 Requirements: 
 
