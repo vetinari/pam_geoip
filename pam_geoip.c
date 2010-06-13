@@ -72,7 +72,9 @@
 # define PATH_MAX 1024
 #endif /* PATH_MAX */
 
+#define SYSTEM_FILE  "/etc/security/geoip.conf"
 #define SERVICE_FILE "/etc/security/geoip.%s.conf"
+#define GEOIPDB_FILE "/usr/local/share/GeoIP/GeoIPCity.dat"
 
 /* GeoIP locations in geoip.conf */
 struct locations {
@@ -520,9 +522,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     _parse_args(pamh, argc, argv, opts);
 
     if (opts->system_file == NULL)
-        opts->system_file = strdup("/etc/security/geoip.conf");/* TODO: strdup->malloc */
+        opts->system_file = strdup(SYSTEM_FILE);
+    if (opts->system_file == NULL) {
+        pam_syslog(pamh, LOG_CRIT, "malloc error 'opts->system_file': %m");
+        free_opts(opts);
+        return PAM_SERVICE_ERR;
+    }
+
     if (opts->geoip_db == NULL)
-        opts->geoip_db = strdup("/usr/local/share/GeoIP/GeoIPCity.dat");/* TODO: strdup->malloc */
+        opts->geoip_db = strdup(GEOIPDB_FILE);
+    if (opts->geoip_db == NULL) {
+        pam_syslog(pamh, LOG_CRIT, "malloc error 'opts->geoip_db': %m");
+        free_opts(opts);
+        return PAM_SERVICE_ERR;
+    }
 
     retval = pam_get_item(pamh, PAM_USER, (void*) &username);    
     if (username == NULL || retval != PAM_SUCCESS) {     
@@ -550,18 +563,21 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     if (srv == NULL || retval != PAM_SUCCESS ) {     
         pam_syslog(pamh, LOG_CRIT, "error requesting service name");
         free_opts(opts);
-        return 0;
+        free_locations(geo);
+        return PAM_SERVICE_ERR;
     }
 
     opts->service_file = malloc(PATH_MAX);
     if (opts->service_file == NULL) {
         pam_syslog(pamh, LOG_CRIT, "malloc error 'service_file': %m");
         free_opts(opts);
+        free_locations(geo);
         return PAM_SERVICE_ERR;
     }
     if (snprintf(opts->service_file, PATH_MAX-1, SERVICE_FILE, srv) < 0) {
         pam_syslog(pamh, LOG_CRIT, "snprintf error 'service_file'");
         free_opts(opts);
+        free_locations(geo);
         return PAM_SERVICE_ERR;
     }
 
@@ -580,19 +596,33 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     if (rec == NULL) {
         pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
 
-        geo->city    = strdup("*");/* TODO: strdup->malloc */
-        geo->country = strdup("UNKNOWN");/* TODO: strdup->malloc */
+        geo->city    = strdup("*");
+        geo->country = strdup("UNKNOWN");
+
+        if (geo->city == NULL || geo->country == NULL) {
+            pam_syslog(pamh, LOG_CRIT, "malloc error 'geo->{city,country}': %m");
+            free_opts(opts);
+            free_locations(geo);
+            return PAM_SERVICE_ERR;
+        }
     } 
     else {
         if (rec->city == NULL)
-            geo->city = strdup("*");/* TODO: strdup->malloc */
+            geo->city = strdup("*");
         else 
-            geo->city = strdup(rec->city);/* TODO: strdup->malloc */ 
+            geo->city = strdup(rec->city);
 
         if (rec->country_code == NULL)
-            geo->country = strdup("UNKNOWN");/* TODO: strdup->malloc */
+            geo->country = strdup("UNKNOWN");
         else
-            geo->country = strdup(rec->country_code);/* TODO: strdup->malloc */
+            geo->country = strdup(rec->country_code);
+
+        if (geo->city == NULL || geo->country == NULL) {
+            pam_syslog(pamh, LOG_CRIT, "malloc error 'geo->{city,country}': %m");
+            free_opts(opts);
+            free_locations(geo);
+            return PAM_SERVICE_ERR;
+        }
 
         geo->latitude  = rec->latitude;
         geo->longitude = rec->longitude;
