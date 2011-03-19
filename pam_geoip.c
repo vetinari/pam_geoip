@@ -414,7 +414,8 @@ check_location(pam_handle_t *pamh,
                  strcmp(list->city,    geo->city   ) == 0)
             ) 
             {
-                pam_syslog(pamh, LOG_INFO, "location matched: %s,%s", 
+                pam_syslog(pamh, LOG_INFO, "location [%s,%s] matched: %s,%s", 
+                                                    geo->country, geo->city,
                                                     list->country, list->city);
                 free_locations(loc);
                 return 1;
