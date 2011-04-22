@@ -709,22 +709,20 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     if (rec) GeoIPRecord_delete(rec);
     free_locations(geo);
 
-    if (opts->debug) {
-        switch (action) {
-            case PAM_SUCCESS:
-                pam_syslog(pamh, LOG_DEBUG, "location allowed");
-                break;
-            case PAM_PERM_DENIED:
-                pam_syslog(pamh, LOG_DEBUG, "location denied");
-                break;
-            case PAM_IGNORE:
-                pam_syslog(pamh, LOG_DEBUG, "location ignored");
-                break;
-            default: /* should not happen */
-                pam_syslog(pamh, LOG_DEBUG, "location status: %d", action);
-                break;
-        };
-    }
+    switch (action) {
+        case PAM_SUCCESS:
+            pam_syslog(pamh, LOG_DEBUG, "location allowed for user %s", username);
+            break;
+        case PAM_PERM_DENIED:
+            pam_syslog(pamh, LOG_DEBUG, "location denied for user %s", username);
+            break;
+        case PAM_IGNORE:
+            pam_syslog(pamh, LOG_DEBUG, "location ignored for user %s", username);
+            break;
+        default: /* should not happen */
+            pam_syslog(pamh, LOG_DEBUG, "location status: %d", action);
+            break;
+    };
     free_opts(opts);
     return action;
 }
