@@ -12,7 +12,7 @@ pam_geoip - GeoIP account management module for (Linux-)PAM
 =head1 SYNOPSIS
 
  account required pam_geoip.so [system_file=file] [geoip_db=file]
-        [charset=name] [action=name] [debug]
+        [charset=name] [action=name] [debug] [geoip6_db=file] [use_v6=1]
 
 
 =head1 DESCRIPTION
@@ -29,6 +29,9 @@ Ths PAM module provides the I<account> hook only.
 If an IP is not found in the GeoIP database, the location to match against
 is set to C<UNKNOWN, *>, no distance matching is possible for these, 
 of course.
+
+B<Note> that I<pam> just receives a hostname. When trying to find an IP for
+this name the modules tries IPv4 first, then IPv6.
 
 If a file named F</etc/security/geoip.SERVICE.conf> (with SERVICE being the
 name of the PAM service) can be opened, this is used instead of the default
@@ -70,6 +73,17 @@ The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCity.dat>.
 This must be a "GeoIP City Edition" file, see
 L<http://www.maxmind.com/app/city> and / or
 L<http://www.maxmind.com/app/geolitecity> for more information.
+
+=item geoip6_db=/path/to/GeoIPCityv6.dat 
+
+The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCityv6.dat>. 
+This must be a "GeoIP City Edition IPv6" file, see
+L<http://www.maxmind.com/app/city> and / or
+L<http://www.maxmind.com/app/geolitecity> for more information.
+
+=item use_v6=1
+
+Use IPv6 DB.
  
 =item charset=CHARSET
 
