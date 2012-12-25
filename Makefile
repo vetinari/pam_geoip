@@ -5,6 +5,7 @@ MAN_5_POD=geoip.conf.5.pod
 MAN_8_POD=pam_geoip.8.pod
 
 C_FILES=pam_geoip.c
+HEADER=pam_geoip.h
 OBJECTS=pam_geoip.o
 MODULE=pam_geoip.so
 LDFLAGS=-lpam -lGeoIP -lm -shared
@@ -14,7 +15,7 @@ INSTALL=/usr/bin/install
 
 all: module doc
 
-module: $(MODULE)
+module: pam_geoip.h $(MODULE)
 
 doc: $(MANPAGES_POD) $(MANPAGES) 
 
@@ -30,8 +31,12 @@ pam_geoip.o: $(C_FILES)
 pam_geoip.so: pam_geoip.o
 	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ pam_geoip.o
 
+pam_geoip.h:
+	sh make_pam_geoip_h.sh
+
 clean:
 	rm -f $(MANPAGES)
+	rm -f $(HEADER)
 	rm -f $(OBJECTS) $(MODULE) core *~
 
 install: $(MODULE)

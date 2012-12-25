@@ -55,6 +55,8 @@
 #include <GeoIP.h>
 #include <GeoIPCity.h>
 
+#include "pam_geoip.h"
+
 #define LINE_LENGTH 4095
 
 #define MASK_NO_MASK  -1
@@ -76,6 +78,10 @@
 #define SERVICE_FILE "/etc/security/geoip.%s.conf"
 #define GEOIPDB_FILE "/usr/local/share/GeoIP/GeoIPCity.dat"
 
+#ifdef HAVE_GEOIP_010408
+#define GEOIP6DB_FILE "/usr/local/share/GeoIP/GeoIPCityv6.dat"
+#endif
+
 /* GeoIP locations in geoip.conf */
 struct locations {
     char *country;
@@ -90,10 +96,16 @@ struct locations {
 struct options {
     char *system_file;
     char *geoip_db;
+#ifdef HAVE_GEOIP_010408
+    char *geoip6_db;
+#endif
     char *service_file; /* not on cmd line */
     int  by_service;    /* if service_file can be opened this is true */
     int  charset;
     int  action;
+#ifdef HAVE_GEOIP_010408
+    int  use_v6;
+#endif
     int  debug;
 };
 
@@ -247,6 +259,10 @@ free_opts(struct options *opts) {
         free(opts->service_file);
     if (opts->geoip_db)
         free(opts->geoip_db);
+#ifdef HAVE_GEOIP_010408
+    if (opts->geoip6_db)
+        free(opts->geoip6_db);
+#endif
     free(opts);
 }
 
@@ -444,6 +460,16 @@ void _parse_args(pam_handle_t *pamh,
             if (argv[i]+9 != '\0') 
                 opts->geoip_db = strndup(argv[i]+9, PATH_MAX);
         }
+#ifdef HAVE_GEOIP_010408
+        else if (strncmp(argv[i], "use_v6=", 7) == 0) {
+            if (argv[i]+7 != '\0') 
+                opts->use_v6 = atoi(argv[i]+7);
+        }
+        else if (strncmp(argv[i], "geoip6_db=", 10) == 0) {
+            if (argv[i]+10 != '\0') 
+                opts->geoip6_db = strndup(argv[i]+10, PATH_MAX);
+        }
+#endif
         else if (strncmp(argv[i], "charset=", 8) == 0) {
             if (argv[i]+8 != '\0') {
                 if (strncasecmp(argv[i]+8, "UTF-8", 5) == 0) {
@@ -494,8 +520,11 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     int retval, action;
     struct locations *geo;
 
-    GeoIP       *gi  = NULL;
-    GeoIPRecord *rec = NULL;
+    GeoIP       *gi   = NULL;
+#ifdef HAVE_GEOIP_010408
+    GeoIP       *gi6  = NULL;
+#endif
+    GeoIPRecord *rec  = NULL;
 
     opts = malloc(sizeof(struct options));
     if (opts == NULL) {
@@ -509,6 +538,10 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     opts->service_file = NULL; 
     opts->by_service   = 0;
     opts->geoip_db     = NULL; 
+#ifdef HAVE_GEOIP_010408
+    opts->use_v6       = 0;
+    opts->geoip6_db    = NULL; 
+#endif
 
     geo = malloc(sizeof(struct locations));
     if (geo == NULL) {
@@ -537,6 +570,16 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         free_opts(opts);
         return PAM_SERVICE_ERR;
     }
+
+#ifdef HAVE_GEOIP_010408
+    if (opts->geoip6_db == NULL)
+        opts->geoip6_db = strdup(GEOIP6DB_FILE);
+    if (opts->geoip6_db == NULL) {
+        pam_syslog(pamh, LOG_CRIT, "malloc error 'opts->geoip6_db': %m");
+        free_opts(opts);
+        return PAM_SERVICE_ERR;
+    }
+#endif
 
     retval = pam_get_item(pamh, PAM_USER, (void*) &username);    
     if (username == NULL || retval != PAM_SUCCESS) {     
@@ -592,10 +635,31 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
     GeoIP_set_charset(gi, opts->charset);
 
+#ifdef HAVE_GEOIP_010408
+    if (opts->use_v6 != 0) {
+        gi6 = GeoIP_open(opts->geoip6_db, 0);
+        if (gi6 == NULL) {
+            pam_syslog(pamh, LOG_CRIT, 
+                            "failed to open geoip6 db (%s): %m", opts->geoip6_db);
+            free_opts(opts);
+            free_locations(geo);
+            return PAM_SERVICE_ERR;
+        }
+        GeoIP_set_charset(gi6, opts->charset);
+    }
+#endif
     /* TODO: also check IPv6 */
     rec = GeoIP_record_by_name(gi, rhost); 
     if (rec == NULL) {
-        pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
+#ifdef HAVE_GEOIP_010408
+        if (opts->use_v6 != 0) {
+            pam_syslog(pamh, LOG_DEBUG, "no IPv4 record for %s, trying IPv6", rhost);
+            rec = GeoIP_record_by_name_v6(gi6, rhost);
+        }
+
+        if (rec == NULL)
+#endif
+            pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
 
         geo->city    = strdup("*");
         geo->country = strdup("UNKNOWN");
