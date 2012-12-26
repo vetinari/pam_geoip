@@ -30,8 +30,10 @@ If an IP is not found in the GeoIP database, the location to match against
 is set to C<UNKNOWN, *>, no distance matching is possible for these, 
 of course.
 
-B<Note> that I<pam> just receives a hostname. When trying to find an IP for
+B<NOTE>: I<pam> just receives a hostname. When trying to find an IP for
 this name the modules tries IPv4 first, then IPv6.
+
+IPv6 support is only available with geoip v1.4.8 or greater.
 
 If a file named F</etc/security/geoip.SERVICE.conf> (with SERVICE being the
 name of the PAM service) can be opened, this is used instead of the default

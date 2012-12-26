@@ -14,14 +14,15 @@ The PAM module provides the "account" hook only. To use this module, add a
 line like 
 
   account required pam_geoip.so [system_file=file] [geoip_db=file] \
-	[charset=name] [action=name] [debug]
+	[charset=name] [action=name] [debug] [geoip6_db=file] [use_v6=1]
 
 to the relevant files in /etc/pam.d/ and configure your 
 /etc/security/geoip.conf and/or /etc/security/geoip.SERVICE.conf.
 
 Requirements: 
 
-Debian (lenny, sid [Linux, kFreeBSD]):
+Debian (lenny, squeeze, sid [Linux, kFreeBSD]):
   building: libgeoip-dev, libpam0g-dev, perl (pod2man)
   running: libgeoip1, libpam0g, libpam-{modules,runtime}, a GeoIP City 
      database, see http://www.maxmind.com/app/city
+  IPv6: libgeoip1 >= 1.4.8, a Geo(Lite) City IPv6 database
