@@ -20,7 +20,7 @@ When the service specific configuration file
 not be present. If this file is present, the default file is not used, even
 if present on the command line as C<system_file=/file/name>.
 
-If you need to match on city names containing non L<ascii(7)> charachters
+If you need to match on city names containing non L<ascii(7)> characters
 (like C<DE, Köln> or C<SE, Växjö>), you can set the character set to use
 in the module's arguments: C<iso-8859-1> or C<UTF-8> (the default). 
 
@@ -66,12 +66,11 @@ GeoIP location, separated by C<;>. This can be:
 
 =item *
 
-a country code (uppercased, two charachers), C<*> or C<UNKNOWN>
+a country code (uppercased, two characters), C<*> or C<UNKNOWN>
 
 =item *
 
 a country code like above and C<,> and a city name (or C<*>) 
-
 
 =item *
 
