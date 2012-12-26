@@ -105,6 +105,7 @@ struct options {
     int  action;
 #ifdef HAVE_GEOIP_010408
     int  use_v6;
+    int  v6_first;
 #endif
     int  debug;
 };
@@ -461,6 +462,10 @@ void _parse_args(pam_handle_t *pamh,
                 opts->geoip_db = strndup(argv[i]+9, PATH_MAX);
         }
 #ifdef HAVE_GEOIP_010408
+        else if (strncmp(argv[i], "v6_first=", 9) == 0) {
+            if (argv[i]+9 != '\0') 
+                opts->v6_first = atoi(argv[i]+9);
+        }
         else if (strncmp(argv[i], "use_v6=", 7) == 0) {
             if (argv[i]+7 != '\0') 
                 opts->use_v6 = atoi(argv[i]+7);
@@ -518,6 +523,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     char *srv;             /* PAM service we're running as */
     char buf[LINE_LENGTH];
     int retval, action;
+    int is_v6 = 0;
     struct locations *geo;
 
     GeoIP       *gi   = NULL;
@@ -540,6 +546,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     opts->geoip_db     = NULL; 
 #ifdef HAVE_GEOIP_010408
     opts->use_v6       = 0;
+    opts->v6_first     = 0;
     opts->geoip6_db    = NULL; 
 #endif
 
@@ -637,7 +644,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
 #ifdef HAVE_GEOIP_010408
     if (opts->use_v6 != 0) {
-        gi6 = GeoIP_open(opts->geoip6_db, 0);
+        gi6 = GeoIP_open(opts->geoip6_db, GEOIP_INDEX_CACHE);
         if (gi6 == NULL) {
             pam_syslog(pamh, LOG_CRIT, 
                             "failed to open geoip6 db (%s): %m", opts->geoip6_db);
@@ -647,19 +654,35 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         }
         GeoIP_set_charset(gi6, opts->charset);
     }
-#endif
-    /* TODO: also check IPv6 */
-    rec = GeoIP_record_by_name(gi, rhost); 
-    if (rec == NULL) {
-#ifdef HAVE_GEOIP_010408
-        if (opts->use_v6 != 0) {
-            pam_syslog(pamh, LOG_DEBUG, "no IPv4 record for %s, trying IPv6", rhost);
+    
+    if (opts->use_v6 != 0) {
+        if (opts->v6_first != 0) {
             rec = GeoIP_record_by_name_v6(gi6, rhost);
+            if (rec == NULL) {
+                if (opts->debug) 
+                    pam_syslog(pamh, LOG_DEBUG, "no IPv6 record for %s, trying IPv4", rhost);
+                rec = GeoIP_record_by_name(gi, rhost); 
+            }
+            else 
+                is_v6 = 1;
         }
-
-        if (rec == NULL)
+        else {
+            rec = GeoIP_record_by_name(gi, rhost); 
+            if (rec == NULL) {
+                if (opts->debug) 
+                    pam_syslog(pamh, LOG_DEBUG, "no IPv4 record for %s, trying IPv6", rhost);
+                rec = GeoIP_record_by_name_v6(gi6, rhost);
+                if (rec != NULL)
+                    is_v6 = 1;
+            }
+        }
+    }
+    else 
 #endif
-            pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
+        rec = GeoIP_record_by_name(gi, rhost); 
+
+    if (rec == NULL) {
+        pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
 
         geo->city    = strdup("*");
         geo->country = strdup("UNKNOWN");
@@ -775,16 +798,16 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     switch (action) {
         case PAM_SUCCESS:
-            pam_syslog(pamh, LOG_DEBUG, "location allowed for user %s", username);
+            pam_syslog(pamh, LOG_DEBUG, "location allowed for user %s from IPv%d address", username, is_v6 ? 6 : 4);
             break;
         case PAM_PERM_DENIED:
-            pam_syslog(pamh, LOG_DEBUG, "location denied for user %s", username);
+            pam_syslog(pamh, LOG_DEBUG, "location denied for user %s from IPv%d address", username, is_v6 ? 6 : 4);
             break;
         case PAM_IGNORE:
-            pam_syslog(pamh, LOG_DEBUG, "location ignored for user %s", username);
+            pam_syslog(pamh, LOG_DEBUG, "location ignored for user %s from IPv%d address", username, is_v6 ? 6 : 4);
             break;
         default: /* should not happen */
-            pam_syslog(pamh, LOG_DEBUG, "location status: %d", action);
+            pam_syslog(pamh, LOG_DEBUG, "location status: %d, IPv%d", action, is_v6 ? 6 : 4);
             break;
     };
     free_opts(opts);
