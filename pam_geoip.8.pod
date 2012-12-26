@@ -12,8 +12,8 @@ pam_geoip - GeoIP account management module for (Linux-)PAM
 =head1 SYNOPSIS
 
  account required pam_geoip.so [system_file=file] [geoip_db=file]
-        [charset=name] [action=name] [debug] [geoip6_db=file] [use_v6=1]
-
+        [charset=name] [action=name] [debug] [geoip6_db=file]
+	[use_v6=1] [v6_first=1]
 
 =head1 DESCRIPTION
 
@@ -24,7 +24,7 @@ uses a GeoIP City database instead of host name / IP matching.
 The matching is done on given country and city names or on distance from
 a given location.
 
-Ths PAM module provides the I<account> hook only. 
+This PAM module provides the I<account> hook only. 
 
 If an IP is not found in the GeoIP database, the location to match against
 is set to C<UNKNOWN, *>, no distance matching is possible for these, 
@@ -86,6 +86,10 @@ L<http://www.maxmind.com/app/geolitecity> for more information.
 =item use_v6=1
 
 Use IPv6 DB.
+
+=item v6_first=1
+
+Try resolving as IPv6 before trying as IPv4 hostname.
  
 =item charset=CHARSET
 
