@@ -42,6 +42,7 @@ clean:
 install: $(MODULE)
 	$(INSTALL) -m 0755 -d $(PAM_LIB_DIR)
 	$(INSTALL) -m 0644 $(MODULE) $(PAM_LIB_DIR)
+
 ### dev targets:
 update:
 	svn update
