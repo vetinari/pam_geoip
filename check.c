@@ -89,6 +89,7 @@ check_location(pam_handle_t *pamh,
                 if (distance <= list->radius) {
                     pam_syslog(pamh, LOG_INFO, "distance(%.3f) < radius(%3.f)", 
                                                     distance, list->radius);
+                    sprintf(location_string, "%.3f {%f,%f}", distance, geo->latitude, geo->longitude);
                     free_locations(loc);
                     return 1;
                 }
@@ -109,9 +110,11 @@ check_location(pam_handle_t *pamh,
                  strcmp(list->city,    geo->city   ) == 0)
             ) 
             {
-                pam_syslog(pamh, LOG_INFO, "location [%s,%s] matched: %s,%s", 
+                if (opts->debug)
+                    pam_syslog(pamh, LOG_INFO, "location [%s,%s] matched: %s,%s", 
                                                     geo->country, geo->city,
                                                     list->country, list->city);
+                sprintf(location_string, "%s,%s", geo->country, geo->city);
                 free_locations(loc);
                 return 1;
             }

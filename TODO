@@ -1,7 +1,7 @@
 TODO:
 =====
 * ipv6 (more) testing, (ipv6 city database in beta @ maxmind)
-* debian/ needs testing
+* test w/ country DB
 
 NOT TODO:
 =========

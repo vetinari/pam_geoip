@@ -86,6 +86,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     int retval, action;
     int is_v6 = 0;
     struct locations *geo;
+    unsigned char gi_type;
 
     GeoIP       *gi   = NULL;
 #ifdef HAVE_GEOIP_010408
@@ -203,17 +204,24 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         free_locations(geo);
         return PAM_SERVICE_ERR;
     }
-    unsigned char gi_type = GeoIP_database_edition(gi);
+    gi_type = GeoIP_database_edition(gi);
     if (opts->debug)
         pam_syslog(pamh, LOG_DEBUG, "GeoIP edition: %d", gi_type);
-
     switch (gi_type) {
         case GEOIP_COUNTRY_EDITION:
-                opts->is_city_db = 0;
+            if (opts->debug)
+                pam_syslog(pamh, LOG_DEBUG, "GeoIP v4 edition: country");
+            opts->is_city_db = 0;
             break;
         case GEOIP_CITY_EDITION_REV0:
+            if (opts->debug)
+                pam_syslog(pamh, LOG_DEBUG, "GeoIP v4 edition: city rev0");
+            opts->is_city_db = 1;
+            break;
         case GEOIP_CITY_EDITION_REV1:
-                opts->is_city_db = 1;
+            if (opts->debug)
+                pam_syslog(pamh, LOG_DEBUG, "GeoIP v4 edition: city rev1");
+            opts->is_city_db = 1;
             break;
         default:
             pam_syslog(pamh, LOG_CRIT, "invalid GeoIP DB type `%d' found", gi_type);
@@ -224,7 +232,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
     GeoIP_set_charset(gi, opts->charset);
     if (opts->debug) 
-        pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City: %s", opts->is_city_db ? "yes" : "no");
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City: %s",
+                                        opts->is_city_db ? "yes" : "no");
 
 #ifdef HAVE_GEOIP_010408
     if (opts->use_v6 != 0) {
@@ -237,20 +246,26 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             free_locations(geo);
             return PAM_SERVICE_ERR;
         }
-        unsigned char gi6_type = GeoIP_database_edition(gi6);
-        if (opts->debug)
-            pam_syslog(pamh, LOG_DEBUG, "GeoIP edition: %d", gi6_type);
+        gi_type = GeoIP_database_edition(gi6);
 
-        switch (gi6_type) {
+        switch (gi_type) {
             case GEOIP_COUNTRY_EDITION_V6:
-                    is_city6_db = 0;
+                if (opts->debug)
+                    pam_syslog(pamh, LOG_DEBUG, "GeoIP v6 edition: country");
+                is_city6_db = 0;
                 break;
             case GEOIP_CITY_EDITION_REV0_V6:
+                if (opts->debug)
+                    pam_syslog(pamh, LOG_DEBUG, "GeoIP v6 edition: city rev0");
+                is_city6_db = 1;
+                break;
             case GEOIP_CITY_EDITION_REV1_V6:
-                    is_city6_db = 1;
+                if (opts->debug)
+                    pam_syslog(pamh, LOG_DEBUG, "GeoIP v6 edition: city rev1");
+                is_city6_db = 1;
                 break;
             default:
-                pam_syslog(pamh, LOG_CRIT, "invalid GeoIP DB type `%d' found", gi6_type);
+                pam_syslog(pamh, LOG_CRIT, "invalid GeoIP DB type `%d' found", gi_type);
                 GeoIP_delete(gi);
                 GeoIP_delete(gi6);
                 free_opts(opts);
@@ -258,20 +273,19 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
                 return PAM_SERVICE_ERR;
         }
         if (opts->debug) 
-            pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City v6: %s", is_city6_db ? "yes" : "no");
+            pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City v6: %s",
+                is_city6_db ? "yes" : "no");
         GeoIP_set_charset(gi6, opts->charset);
-    }
 
-    if (opts->is_city_db != is_city6_db) {
-        pam_syslog(pamh, LOG_CRIT, "IPv4 DB type is not the same as IPv6 (not both Country edition or both City edition)");
-        GeoIP_delete(gi);
-        GeoIP_delete(gi6);
-        free_opts(opts);
-        free_locations(geo);
-        return PAM_SERVICE_ERR;
-    } 
+        if (opts->is_city_db != is_city6_db) {
+            pam_syslog(pamh, LOG_CRIT, "IPv4 DB type is not the same as IPv6 (not both Country edition or both City edition)");
+            GeoIP_delete(gi);
+            GeoIP_delete(gi6);
+            free_opts(opts);
+            free_locations(geo);
+            return PAM_SERVICE_ERR;
+        } 
 
-    if (opts->use_v6 != 0) {
         if (opts->v6_first != 0) {
             rec = GeoIP_record_by_name_v6(gi6, rhost);
             if (rec == NULL) {
@@ -371,11 +385,11 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
 
     action = opts->action;
+    char location[LINE_LENGTH];
     while (fgets(buf, LINE_LENGTH, fh) != NULL) {
         char *line, *ptr;
         char domain[LINE_LENGTH], 
-             service[LINE_LENGTH], 
-             location[LINE_LENGTH];
+             service[LINE_LENGTH];
         
         action = opts->action;
         line   = buf;
@@ -415,7 +429,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         }
         else if (domain[0] == '@') {
             if (pam_modutil_user_in_group_nam_nam(pamh, username, domain+1)) {
-                if (check_location(pamh, opts, location, geo)) 
+                if (check_location(pamh, opts, location, geo))
                     break;
             }
         }
@@ -431,13 +445,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     switch (action) {
         case PAM_SUCCESS:
-            pam_syslog(pamh, LOG_DEBUG, "location allowed for user %s from IPv%d address", username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s allowed for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
             break;
         case PAM_PERM_DENIED:
-            pam_syslog(pamh, LOG_DEBUG, "location denied for user %s from IPv%d address", username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s denied for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
             break;
         case PAM_IGNORE:
-            pam_syslog(pamh, LOG_DEBUG, "location ignored for user %s from IPv%d address", username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s ignored for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
             break;
         default: /* should not happen */
             pam_syslog(pamh, LOG_DEBUG, "location status: %d, IPv%d", action, is_v6 ? 6 : 4);
