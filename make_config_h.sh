@@ -2,6 +2,7 @@
 
 TEMP_SRC=$( tempfile -s .c )
 TEMP_OUT=$( tempfile )
+CONFIG_H="config.h"
 
 cat > $TEMP_SRC <<_END
 #include <GeoIP.h>
@@ -12,11 +13,11 @@ _END
 
 gcc -lGeoIP $TEMP_SRC -shared -o $TEMP_OUT 2> /dev/null
 if [ $? -eq 0 ]; then
-    rm -f pam_geoip.h
-    echo "#define HAVE_GEOIP_010408" > pam_geoip.h
+    rm -f $CONFIG_H
+    echo "#define HAVE_GEOIP_010408" > $CONFIG_H
 else
-    rm -f pam_geoip.h
-    cat > pam_geoip.h <<_END
+    rm -f $CONFIG_H
+    cat > $CONFIG_H <<_END
 #ifdef HAVE_GEOIP_010408
 #undef HAVE_GEOIP_010408
 #endif

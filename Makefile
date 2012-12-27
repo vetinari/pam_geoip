@@ -4,18 +4,16 @@ MANPAGES=geoip.conf.5 pam_geoip.8
 MAN_5_POD=geoip.conf.5.pod
 MAN_8_POD=pam_geoip.8.pod
 
-C_FILES=pam_geoip.c
+C_FILES=pam_geoip.c parse.c args.c check.c
 HEADER=pam_geoip.h
-OBJECTS=pam_geoip.o
+OBJECTS=pam_geoip.o parse.o args.o check.o
 MODULE=pam_geoip.so
 LDFLAGS=-lpam -lGeoIP -lm -shared
 CCFLAGS=-Wall
 PAM_LIB_DIR=$(DESTDIR)/lib/security
 INSTALL=/usr/bin/install
 
-all: module doc
-
-module: pam_geoip.h $(MODULE)
+all: config.h pam_geoip.so doc
 
 doc: $(MANPAGES_POD) $(MANPAGES) 
 
@@ -25,18 +23,18 @@ doc: $(MANPAGES_POD) $(MANPAGES)
 %.8: $(MAN_8_POD)
 	$(POD2MAN) -u -s 8 -n $(shell basename $@ .8) $@.pod > $@
 
-pam_geoip.o: $(C_FILES)
+$(OBJECTS): $(C_FILES)
 	$(CC) $(CCFLAGS) -fPIC -c $*.c
 
-pam_geoip.so: pam_geoip.o
-	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ pam_geoip.o
+pam_geoip.so: $(OBJECTS)
+	$(CC) $(CCFLAGS) $(LDFLAGS) -o $@ $(OBJECTS)
 
-pam_geoip.h:
-	sh make_pam_geoip_h.sh
+config.h:
+	sh make_config_h.sh
 
 clean:
 	rm -f $(MANPAGES)
-	rm -f $(HEADER)
+	rm -f config.h
 	rm -f $(OBJECTS) $(MODULE) core *~
 
 install: $(MODULE)
