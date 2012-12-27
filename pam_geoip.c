@@ -107,6 +107,7 @@ struct options {
     int  use_v6;
     int  v6_first;
 #endif
+    int  is_city_db;
     int  debug;
 };
 
@@ -408,15 +409,18 @@ check_location(pam_handle_t *pamh,
                 list = list->next;
                 continue;
             }
-
-            distance = calc_distance(list->latitude, list->longitude, 
-                                      geo->latitude, geo->longitude);
-            if (distance <= list->radius) {
-                pam_syslog(pamh, LOG_INFO, "distance(%.3f) < radius(%3.f)", 
+            if (opts->is_city_db) {
+                distance = calc_distance(list->latitude, list->longitude, 
+                                          geo->latitude, geo->longitude);
+                if (distance <= list->radius) {
+                    pam_syslog(pamh, LOG_INFO, "distance(%.3f) < radius(%3.f)", 
                                                     distance, list->radius);
-                free_locations(loc);
-                return 1;
+                    free_locations(loc);
+                    return 1;
+                }
             } 
+            else 
+                pam_syslog(pamh, LOG_INFO, "not a city db edition, ignoring distance entry");
         }
         else {
             if (opts->debug) 
@@ -524,6 +528,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     char buf[LINE_LENGTH];
     int retval, action;
     int is_v6 = 0;
+    int is_city6_db = 0;
     struct locations *geo;
 
     GeoIP       *gi   = NULL;
@@ -549,6 +554,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     opts->v6_first     = 0;
     opts->geoip6_db    = NULL; 
 #endif
+    opts->is_city_db   = 0;
 
     geo = malloc(sizeof(struct locations));
     if (geo == NULL) {
@@ -640,7 +646,28 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         free_locations(geo);
         return PAM_SERVICE_ERR;
     }
+    unsigned char gi_type = GeoIP_database_edition(gi);
+    if (opts->debug)
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP edition: %d", gi_type);
+
+    switch (gi_type) {
+        case GEOIP_COUNTRY_EDITION:
+                opts->is_city_db = 0;
+            break;
+        case GEOIP_CITY_EDITION_REV0:
+        case GEOIP_CITY_EDITION_REV1:
+                opts->is_city_db = 1;
+            break;
+        default:
+            pam_syslog(pamh, LOG_CRIT, "invalid GeoIP DB type `%d' found", gi_type);
+            GeoIP_delete(gi);
+            free_opts(opts);
+            free_locations(geo);
+            return PAM_SERVICE_ERR;
+    }
     GeoIP_set_charset(gi, opts->charset);
+    if (opts->debug) 
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City: %s", opts->is_city_db ? "yes" : "no");
 
 #ifdef HAVE_GEOIP_010408
     if (opts->use_v6 != 0) {
@@ -648,13 +675,45 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         if (gi6 == NULL) {
             pam_syslog(pamh, LOG_CRIT, 
                             "failed to open geoip6 db (%s): %m", opts->geoip6_db);
+            GeoIP_delete(gi);
             free_opts(opts);
             free_locations(geo);
             return PAM_SERVICE_ERR;
         }
+        unsigned char gi6_type = GeoIP_database_edition(gi6);
+        if (opts->debug)
+            pam_syslog(pamh, LOG_DEBUG, "GeoIP edition: %d", gi6_type);
+
+        switch (gi6_type) {
+            case GEOIP_COUNTRY_EDITION_V6:
+                    is_city6_db = 0;
+                break;
+            case GEOIP_CITY_EDITION_REV0_V6:
+            case GEOIP_CITY_EDITION_REV1_V6:
+                    is_city6_db = 1;
+                break;
+            default:
+                pam_syslog(pamh, LOG_CRIT, "invalid GeoIP DB type `%d' found", gi6_type);
+                GeoIP_delete(gi);
+                GeoIP_delete(gi6);
+                free_opts(opts);
+                free_locations(geo);
+                return PAM_SERVICE_ERR;
+        }
+        if (opts->debug) 
+            pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City v6: %s", is_city6_db ? "yes" : "no");
         GeoIP_set_charset(gi6, opts->charset);
     }
-    
+
+    if (opts->is_city_db != is_city6_db) {
+        pam_syslog(pamh, LOG_CRIT, "IPv4 DB type is not the same as IPv6 (not both Country edition or both City edition)");
+        GeoIP_delete(gi);
+        GeoIP_delete(gi6);
+        free_opts(opts);
+        free_locations(geo);
+        return PAM_SERVICE_ERR;
+    } 
+
     if (opts->use_v6 != 0) {
         if (opts->v6_first != 0) {
             rec = GeoIP_record_by_name_v6(gi6, rhost);
@@ -689,13 +748,17 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
         if (geo->city == NULL || geo->country == NULL) {
             pam_syslog(pamh, LOG_CRIT, "malloc error 'geo->{city,country}': %m");
+            GeoIP_delete(gi);
+#ifdef HAVE_GEOIP_010408
+            GeoIP_delete(gi6);
+#endif
             free_opts(opts);
             free_locations(geo);
             return PAM_SERVICE_ERR;
         }
     } 
     else {
-        if (rec->city == NULL)
+        if (rec->city == NULL || opts->is_city_db == 0)
             geo->city = strdup("*");
         else 
             geo->city = strdup(rec->city);
@@ -707,20 +770,26 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
         if (geo->city == NULL || geo->country == NULL) {
             pam_syslog(pamh, LOG_CRIT, "malloc error 'geo->{city,country}': %m");
+            GeoIP_delete(gi);
+#ifdef HAVE_GEOIP_010408
+            GeoIP_delete(gi6);
+#endif
             free_opts(opts);
             free_locations(geo);
             return PAM_SERVICE_ERR;
         }
 
-        geo->latitude  = rec->latitude;
-        geo->longitude = rec->longitude;
+        if (opts->is_city_db) {
+            geo->latitude  = rec->latitude;
+            geo->longitude = rec->longitude;
+        }
     }
 
     if (opts->debug)
         pam_syslog(pamh, LOG_DEBUG, "GeoIP record for %s: %s,%s", 
                                 rhost, geo->country, geo->city);
 
-    if (opts->debug && strcmp(geo->country, "UNKNOWN") != 0)
+    if (opts->debug && strcmp(geo->country, "UNKNOWN") != 0 && opts->is_city_db)
         pam_syslog(pamh, LOG_DEBUG, "GeoIP coordinates for %s: %f,%f", 
                                     rhost, geo->latitude, geo->longitude);
 
@@ -733,6 +802,10 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     else {
         if ((fh = fopen(opts->system_file, "r")) == NULL) {
             pam_syslog(pamh, LOG_CRIT, "error opening %s: %m", opts->system_file);
+
+#ifdef HAVE_GEOIP_010408
+            if (gi6) GeoIP_delete(gi6);
+#endif
             if (gi) GeoIP_delete(gi);
             if (rec) GeoIPRecord_delete(rec);
             free_opts(opts);
@@ -793,6 +866,9 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     fclose(fh);
     if (gi) GeoIP_delete(gi);
+#ifdef HAVE_GEOIP_010408
+    if (gi6) GeoIP_delete(gi6);
+#endif
     if (rec) GeoIPRecord_delete(rec);
     free_locations(geo);
 
