@@ -85,12 +85,12 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     char buf[LINE_LENGTH];
     int retval, action;
     int is_v6 = 0;
-    int is_city6_db = 0;
     struct locations *geo;
 
     GeoIP       *gi   = NULL;
 #ifdef HAVE_GEOIP_010408
     GeoIP       *gi6  = NULL;
+    int is_city6_db   = 0;
 #endif
     GeoIPRecord *rec  = NULL;
 
@@ -294,7 +294,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         }
     }
     else 
-#endif
+#endif /* HAVE_GEOIP_010408 */
         rec = GeoIP_record_by_name(gi, rhost); 
 
     if (rec == NULL) {
