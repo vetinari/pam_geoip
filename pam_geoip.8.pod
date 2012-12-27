@@ -19,10 +19,11 @@ pam_geoip - GeoIP account management module for (Linux-)PAM
 
 The B<pam_geoip> module provides a check if the remote logged in user is
 logged in from a given location. This is similar to L<pam_access(8)>, but
-uses a GeoIP City database instead of host name / IP matching.
+uses a GeoIP City or GeoIP Country database instead of host name / IP matching.
 
 The matching is done on given country and city names or on distance from
-a given location.
+a given location. With a country database only matches of the countries are
+possible.
 
 This PAM module provides the I<account> hook only. 
 

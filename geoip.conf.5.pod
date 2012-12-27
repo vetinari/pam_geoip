@@ -70,13 +70,17 @@ a country code (uppercased, two characters), C<*> or C<UNKNOWN>
 
 =item *
 
-a country code like above and C<,> and a city name (or C<*>) 
+a country code like above and C<,> and a city name (or C<*>). When using a
+GeoIP country database, this part must be C<*>, i.e. the full entry looks
+like C<DE, *>.
 
 =item *
 
 a distance from a given point, e.g. 
   
  50.0 { 51.513888, 7.465277 }
+
+This is not available when using a GeoIP country database.
 
 =back
 
