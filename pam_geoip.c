@@ -445,13 +445,13 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     switch (action) {
         case PAM_SUCCESS:
-            pam_syslog(pamh, LOG_DEBUG, "location %s allowed for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s allowed for user %s from %s (IPv%d)", location, username, rhost, is_v6 ? 6 : 4);
             break;
         case PAM_PERM_DENIED:
-            pam_syslog(pamh, LOG_DEBUG, "location %s denied for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s denied for user %s from %s (IPv%d)", location, username, rhost, is_v6 ? 6 : 4);
             break;
         case PAM_IGNORE:
-            pam_syslog(pamh, LOG_DEBUG, "location %s ignored for user %s from IPv%d address", location, username, is_v6 ? 6 : 4);
+            pam_syslog(pamh, LOG_DEBUG, "location %s ignored for user %s from %s (IPv%d)", location, username, rhost, is_v6 ? 6 : 4);
             break;
         default: /* should not happen */
             pam_syslog(pamh, LOG_DEBUG, "location status: %d, IPv%d", action, is_v6 ? 6 : 4);

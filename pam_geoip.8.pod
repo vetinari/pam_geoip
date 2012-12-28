@@ -32,9 +32,11 @@ is set to C<UNKNOWN, *>, no distance matching is possible for these,
 of course.
 
 B<NOTE>: I<pam> just receives a hostname. When trying to find an IP for
-this name the modules tries IPv4 first, then IPv6.
+this name the modules tries IPv4 first, then IPv6. This can be changed
+with the C<v6_first=1> switch.
 
-IPv6 support is only available with geoip v1.4.8 or greater.
+IPv6 support is only available with geoip v1.4.8 or greater, and is has to
+be enabled by using the C<use_v6=1> switch.
 
 If a file named F</etc/security/geoip.SERVICE.conf> (with SERVICE being the
 name of the PAM service) can be opened, this is used instead of the default
@@ -70,19 +72,22 @@ These options may be given in the PAM config file as parameters:
 The configuration file for B<pam_geoip>. Default is 
 F</etc/security/geoip.conf>. For the format of this file, see L<geoip.conf(5)>.
 
+B<NOTE>: when a file F</etc/security/geoip.SERVICE.conf> file is present, this
+switch is ignored (with C<SERVICE> being the name of the PAM service, e.g. 
+C<sshd>).
+
 =item geoip_db=/path/to/GeoIPCity.dat 
 
 The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCity.dat>. 
-This must be a "GeoIP City Edition" file, see
-L<http://www.maxmind.com/app/city> and / or
-L<http://www.maxmind.com/app/geolitecity> for more information.
+This must be a C<GeoIP City Edition> or a C<GeoIP Country Edition> file, see
+L<http://www.maxmind.com/en/city>, L<http://www.maxmind.com/en/city> and
+L<http://dev.maxmind.com/geoip/geolite> for more information.
 
 =item geoip6_db=/path/to/GeoIPCityv6.dat 
 
 The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCityv6.dat>. 
-This must be a "GeoIP City Edition IPv6" file, see
-L<http://www.maxmind.com/app/city> and / or
-L<http://www.maxmind.com/app/geolitecity> for more information.
+This must be a C<GeoIP City Edition IPv6> or a C<GeoIP Country Edition IPv6>
+file, see above for more information.
 
 =item use_v6=1
 
