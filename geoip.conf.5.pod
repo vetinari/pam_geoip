@@ -11,7 +11,7 @@ geoip.conf - config file for the PAM module pam_geoip
 
 =head1 DESCRIPTION
 
-The configuration file (by default /etc/security/geoip.conf) contains lines
+The configuration file (by default F</etc/security/geoip.conf>) contains lines
 of four items: domain, service, action and location. For a description of
 these, see below. 
 
