@@ -10,7 +10,7 @@ OBJECTS=pam_geoip.o parse.o args.o check.o
 MODULE=pam_geoip.so
 LDFLAGS=-lpam -lGeoIP -lm -shared
 CCFLAGS=-Wall
-PAM_LIB_DIR=$(DESTDIR)/lib/security
+PAM_LIB_DIR=$(DESTDIR)/lib/$(MULTIARCH)/security
 INSTALL=/usr/bin/install
 
 all: config.h pam_geoip.so doc
