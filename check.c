@@ -18,9 +18,9 @@ int check_service(pam_handle_t *pamh, char *services, char *srv) {
         while (*str && *str != ',')
             str++;
 
-        if (*str) 
+        if (*str)
             next = str + 1;
-        else 
+        else
             next = "";
 
         *str = '\0';
@@ -65,16 +65,16 @@ calc_distance(float latitude, float longitude, float geo_lat, float geo_long) {
     return distance;
 }
 
-int 
-check_location(pam_handle_t *pamh, 
+int
+check_location(pam_handle_t *pamh,
                struct options *opts,
-               char *location_string, 
+               char *location_string,
                struct locations *geo)
 {
     struct locations *list;
     struct locations *loc;
     double distance;
- 
+
     list = loc = parse_locations(pamh, opts, location_string);
 
     while (list) {
@@ -84,34 +84,34 @@ check_location(pam_handle_t *pamh,
                 continue;
             }
             if (opts->is_city_db) {
-                distance = calc_distance(list->latitude, list->longitude, 
+                distance = calc_distance(list->latitude, list->longitude,
                                           geo->latitude, geo->longitude);
                 if (distance <= list->radius) {
-                    pam_syslog(pamh, LOG_INFO, "distance(%.3f) < radius(%3.f)", 
+                    pam_syslog(pamh, LOG_INFO, "distance(%.3f) < radius(%3.f)",
                                                     distance, list->radius);
                     sprintf(location_string, "%.3f {%f,%f}", distance, geo->latitude, geo->longitude);
                     free_locations(loc);
                     return 1;
                 }
-            } 
-            else 
+            }
+            else
                 pam_syslog(pamh, LOG_INFO, "not a city db edition, ignoring distance entry");
         }
         else {
-            if (opts->debug) 
-                pam_syslog(pamh, LOG_INFO, "location: (%s,%s) geoip: (%s,%s)", 
+            if (opts->debug)
+                pam_syslog(pamh, LOG_INFO, "location: (%s,%s) geoip: (%s,%s)",
                             list->country, list->city, geo->country, geo->city);
 
-            if ( 
-                (list->country[0] == '*' || 
-                 strcmp(list->country, geo->country) == 0) 
-                    && 
-                (list->city[0]    == '*' || 
+            if (
+                (list->country[0] == '*' ||
+                 strcmp(list->country, geo->country) == 0)
+                    &&
+                (list->city[0]    == '*' ||
                  strcmp(list->city,    geo->city   ) == 0)
-            ) 
+            )
             {
                 if (opts->debug)
-                    pam_syslog(pamh, LOG_INFO, "location [%s,%s] matched: %s,%s", 
+                    pam_syslog(pamh, LOG_INFO, "location [%s,%s] matched: %s,%s",
                                                     geo->country, geo->city,
                                                     list->country, list->city);
                 sprintf(location_string, "%s,%s", geo->country, geo->city);
@@ -126,6 +126,6 @@ check_location(pam_handle_t *pamh,
     return 0;
 }
 
-/* 
+/*
  * vim: ts=4 sw=4 expandtab
  */

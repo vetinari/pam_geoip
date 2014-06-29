@@ -25,10 +25,10 @@ The matching is done on given country and city names or on distance from
 a given location. With a country database only matches of the countries are
 possible.
 
-This PAM module provides the I<account> hook only. 
+This PAM module provides the I<account> hook only.
 
 If an IP is not found in the GeoIP database, the location to match against
-is set to C<UNKNOWN, *>, no distance matching is possible for these, 
+is set to C<UNKNOWN, *>, no distance matching is possible for these,
 of course.
 
 B<NOTE>: I<pam> just receives a hostname. When trying to find an IP for
@@ -67,25 +67,25 @@ These options may be given in the PAM config file as parameters:
 
 =over 4
 
-=item system_file=/path/to/geoip.conf 
+=item system_file=/path/to/geoip.conf
 
-The configuration file for B<pam_geoip>. Default is 
+The configuration file for B<pam_geoip>. Default is
 F</etc/security/geoip.conf>. For the format of this file, see L<geoip.conf(5)>.
 
 B<NOTE>: when a file F</etc/security/geoip.SERVICE.conf> file is present, this
-switch is ignored (with C<SERVICE> being the name of the PAM service, e.g. 
+switch is ignored (with C<SERVICE> being the name of the PAM service, e.g.
 C<sshd>).
 
-=item geoip_db=/path/to/GeoIPCity.dat 
+=item geoip_db=/path/to/GeoIPCity.dat
 
-The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCity.dat>. 
+The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCity.dat>.
 This must be a C<GeoIP City Edition> or a C<GeoIP Country Edition> file, see
 L<http://www.maxmind.com/en/city>, L<http://www.maxmind.com/en/city> and
 L<http://dev.maxmind.com/geoip/geolite> for more information.
 
-=item geoip6_db=/path/to/GeoIPCityv6.dat 
+=item geoip6_db=/path/to/GeoIPCityv6.dat
 
-The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCityv6.dat>. 
+The GeoIP database to use. Default: F</usr/local/share/GeoIP/GeoIPCityv6.dat>.
 This must be a C<GeoIP City Edition IPv6> or a C<GeoIP Country Edition IPv6>
 file, see above for more information.
 
@@ -96,11 +96,11 @@ Use IPv6 DB.
 =item v6_first=1
 
 Try resolving as IPv6 before trying as IPv4 hostname.
- 
+
 =item charset=CHARSET
 
 The charset of the config file, defaults to C<UTF-8>. Other possible value
-is C<iso-8859-1> (case insensitive). 
+is C<iso-8859-1> (case insensitive).
 
 =item action=ACTION
 
@@ -118,11 +118,11 @@ Adds some debugging output to syslog.
 
 =over 4
 
-=item /etc/security/geoip.conf 
+=item /etc/security/geoip.conf
 
 The default configuration file for this module
 
-=item /etc/security/geoip.SERVICE.conf 
+=item /etc/security/geoip.SERVICE.conf
 
 The default configuration file for PAM service SERVICE
 

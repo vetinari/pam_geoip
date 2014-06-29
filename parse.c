@@ -7,8 +7,8 @@
 #include "pam_geoip.h"
 
 struct locations *
-parse_locations(pam_handle_t *pamh, 
-                struct options *opts, 
+parse_locations(pam_handle_t *pamh,
+                struct options *opts,
                 char *location_string)
 {
     struct locations *entry  = NULL;
@@ -51,13 +51,13 @@ parse_locations(pam_handle_t *pamh,
             single = next;
             continue;
         }
-        
-        if (sscanf(single, "%f { %f , %f }", &radius, &latitude, &longitude) 
+
+        if (sscanf(single, "%f { %f , %f }", &radius, &latitude, &longitude)
             == 3)
         {
             if (fabsf(latitude) > 90.0 || fabsf(longitude) > 180.0) {
-                pam_syslog(pamh, LOG_WARNING, 
-                        "illegal value(s) in LAT/LONG: %f, %f", 
+                pam_syslog(pamh, LOG_WARNING,
+                        "illegal value(s) in LAT/LONG: %f, %f",
                         latitude, longitude);
                 single = next;
                 continue;
@@ -112,7 +112,7 @@ parse_locations(pam_handle_t *pamh,
                 return NULL;
             }
 
-            entry->city = strdup(city);  
+            entry->city = strdup(city);
             if (entry->city == NULL) {
                 pam_syslog(pamh, LOG_CRIT, "failed to malloc: %m");
                 free(entry);
@@ -141,18 +141,18 @@ int parse_action(pam_handle_t *pamh, char *name) {
     else if (strcmp(name, "allow") == 0)
         action = PAM_SUCCESS;
     else if (strcmp(name, "ignore") == 0)
-        action = PAM_IGNORE; 
+        action = PAM_IGNORE;
     else
         pam_syslog(pamh, LOG_WARNING, "invalid action '%s' - skipped", name);
-    
+
     return action;
 }
 
-int 
-parse_line_srv(pam_handle_t *pamh, 
-           char *line, 
-           char *domain, 
-           char *location) 
+int
+parse_line_srv(pam_handle_t *pamh,
+           char *line,
+           char *domain,
+           char *location)
 {
     char *str;
     char action[LINE_LENGTH+1];
@@ -168,16 +168,16 @@ parse_line_srv(pam_handle_t *pamh,
             *str = '\0';
             str--;
     }
-    
+
     return parse_action(pamh, action);
 }
 
-int 
-parse_line_sys(pam_handle_t *pamh, 
-           char *line, 
-           char *domain, 
-           char *service, 
-           char *location) 
+int
+parse_line_sys(pam_handle_t *pamh,
+           char *line,
+           char *domain,
+           char *service,
+           char *location)
 {
     char *str;
     char action[LINE_LENGTH+1];
@@ -194,10 +194,10 @@ parse_line_sys(pam_handle_t *pamh,
             *str = '\0';
             str--;
     }
-    
+
     return parse_action(pamh, action);
 }
 
-/* 
+/*
  * vim: ts=4 sw=4 expandtab
  */

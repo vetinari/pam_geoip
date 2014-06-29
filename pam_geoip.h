@@ -8,7 +8,7 @@
 #ifndef _PAM_GEOIP_H
 #define _PAM_GEOIP_H
 
-#define _GNU_SOURCE 
+#define _GNU_SOURCE
 #define _BSD_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,45 +80,45 @@ struct options {
 };
 
 extern struct locations *
-parse_locations(pam_handle_t *pamh, 
-                struct options *opts, 
+parse_locations(pam_handle_t *pamh,
+                struct options *opts,
                 char *location_string);
 
 
-extern void 
-free_locations(struct locations *list); 
+extern void
+free_locations(struct locations *list);
 
-extern void 
-free_opts(struct options *opts); 
+extern void
+free_opts(struct options *opts);
 
 extern int
-parse_action(pam_handle_t *pamh, char *name); 
+parse_action(pam_handle_t *pamh, char *name);
 
-extern int 
-parse_line_srv(pam_handle_t *pamh, 
-           char *line, 
-           char *domain, 
+extern int
+parse_line_srv(pam_handle_t *pamh,
+           char *line,
+           char *domain,
            char *location);
 
 
-extern int 
-parse_line_sys(pam_handle_t *pamh, 
-           char *line, 
-           char *domain, 
-           char *service, 
+extern int
+parse_line_sys(pam_handle_t *pamh,
+           char *line,
+           char *domain,
+           char *service,
            char *location);
 
 extern int
 check_service(pam_handle_t *pamh, char *services, char *srv);
 
-extern double 
-calc_distance(float latitude, float longitude, float geo_lat, float geo_long); 
+extern double
+calc_distance(float latitude, float longitude, float geo_lat, float geo_long);
 
 
-extern int 
-check_location(pam_handle_t *pamh, 
+extern int
+check_location(pam_handle_t *pamh,
                struct options *opts,
-               char *location_string, 
+               char *location_string,
                struct locations *geo);
 
 extern void
@@ -128,6 +128,6 @@ _parse_args(pam_handle_t *pamh,
              struct options *opts);
 
 #endif /* _PAM_GEOIP_H */
-/* 
+/*
  * vim: ts=4 sw=4 expandtab
  */

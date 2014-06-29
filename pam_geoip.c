@@ -42,7 +42,7 @@
 
 #include "pam_geoip.h"
 
-void 
+void
 free_locations(struct locations *list) {
     struct locations *entry;
     while (list) {
@@ -56,7 +56,7 @@ free_locations(struct locations *list) {
     }
 }
 
-void 
+void
 free_opts(struct options *opts) {
     if (opts->system_file)
         free(opts->system_file);
@@ -72,9 +72,9 @@ free_opts(struct options *opts) {
 }
 
 PAM_EXTERN int
-pam_sm_acct_mgmt(pam_handle_t *pamh, 
+pam_sm_acct_mgmt(pam_handle_t *pamh,
                 int flags,
-                int argc, 
+                int argc,
                 const char **argv)
 {
     struct options *opts;
@@ -103,14 +103,14 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     opts->charset      = GEOIP_CHARSET_UTF8;
     opts->debug        = 0;
     opts->action       = PAM_PERM_DENIED;
-    opts->system_file  = NULL; 
-    opts->service_file = NULL; 
+    opts->system_file  = NULL;
+    opts->service_file = NULL;
     opts->by_service   = 0;
-    opts->geoip_db     = NULL; 
+    opts->geoip_db     = NULL;
 #ifdef HAVE_GEOIP_010408
     opts->use_v6       = 0;
     opts->v6_first     = 0;
-    opts->geoip6_db    = NULL; 
+    opts->geoip6_db    = NULL;
 #endif
     opts->is_city_db   = 0;
 
@@ -152,15 +152,15 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
 #endif
 
-    retval = pam_get_item(pamh, PAM_USER, (void*) &username);    
-    if (username == NULL || retval != PAM_SUCCESS) {     
+    retval = pam_get_item(pamh, PAM_USER, (void*) &username);
+    if (username == NULL || retval != PAM_SUCCESS) {
         pam_syslog(pamh, LOG_CRIT, "error recovering username");
         free_opts(opts);
         free_locations(geo);
         return PAM_SERVICE_ERR;
     }
 
-    retval = pam_get_item(pamh, PAM_RHOST, (void*) &rhost);    
+    retval = pam_get_item(pamh, PAM_RHOST, (void*) &rhost);
     if (retval != PAM_SUCCESS) {
         pam_syslog(pamh, LOG_CRIT, "error fetching rhost");
         free_opts(opts);
@@ -174,8 +174,8 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
         return PAM_SUCCESS;
     }
 
-    retval = pam_get_item(pamh, PAM_SERVICE, (void*) &srv);    
-    if (srv == NULL || retval != PAM_SUCCESS ) {     
+    retval = pam_get_item(pamh, PAM_SERVICE, (void*) &srv);
+    if (srv == NULL || retval != PAM_SUCCESS ) {
         pam_syslog(pamh, LOG_CRIT, "error requesting service name");
         free_opts(opts);
         free_locations(geo);
@@ -198,7 +198,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
 
     gi = GeoIP_open(opts->geoip_db, GEOIP_INDEX_CACHE);
     if (gi == NULL) {
-        pam_syslog(pamh, LOG_CRIT, 
+        pam_syslog(pamh, LOG_CRIT,
                         "failed to open geoip db (%s): %m", opts->geoip_db);
         free_opts(opts);
         free_locations(geo);
@@ -231,7 +231,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             return PAM_SERVICE_ERR;
     }
     GeoIP_set_charset(gi, opts->charset);
-    if (opts->debug) 
+    if (opts->debug)
         pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City: %s",
                                         opts->is_city_db ? "yes" : "no");
 
@@ -239,7 +239,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     if (opts->use_v6 != 0) {
         gi6 = GeoIP_open(opts->geoip6_db, GEOIP_INDEX_CACHE);
         if (gi6 == NULL) {
-            pam_syslog(pamh, LOG_CRIT, 
+            pam_syslog(pamh, LOG_CRIT,
                             "failed to open geoip6 db (%s): %m", opts->geoip6_db);
             GeoIP_delete(gi);
             free_opts(opts);
@@ -272,7 +272,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
                 free_locations(geo);
                 return PAM_SERVICE_ERR;
         }
-        if (opts->debug) 
+        if (opts->debug)
             pam_syslog(pamh, LOG_DEBUG, "GeoIP DB is City v6: %s",
                 is_city6_db ? "yes" : "no");
         GeoIP_set_charset(gi6, opts->charset);
@@ -284,22 +284,22 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             free_opts(opts);
             free_locations(geo);
             return PAM_SERVICE_ERR;
-        } 
+        }
 
         if (opts->v6_first != 0) {
             rec = GeoIP_record_by_name_v6(gi6, rhost);
             if (rec == NULL) {
-                if (opts->debug) 
+                if (opts->debug)
                     pam_syslog(pamh, LOG_DEBUG, "no IPv6 record for %s, trying IPv4", rhost);
-                rec = GeoIP_record_by_name(gi, rhost); 
+                rec = GeoIP_record_by_name(gi, rhost);
             }
-            else 
+            else
                 is_v6 = 1;
         }
         else {
-            rec = GeoIP_record_by_name(gi, rhost); 
+            rec = GeoIP_record_by_name(gi, rhost);
             if (rec == NULL) {
-                if (opts->debug) 
+                if (opts->debug)
                     pam_syslog(pamh, LOG_DEBUG, "no IPv4 record for %s, trying IPv6", rhost);
                 rec = GeoIP_record_by_name_v6(gi6, rhost);
                 if (rec != NULL)
@@ -307,9 +307,9 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             }
         }
     }
-    else 
+    else
 #endif /* HAVE_GEOIP_010408 */
-        rec = GeoIP_record_by_name(gi, rhost); 
+        rec = GeoIP_record_by_name(gi, rhost);
 
     if (rec == NULL) {
         pam_syslog(pamh, LOG_INFO, "no record for %s, setting GeoIP to 'UNKNOWN,*'", rhost);
@@ -327,11 +327,11 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             free_locations(geo);
             return PAM_SERVICE_ERR;
         }
-    } 
+    }
     else {
         if (rec->city == NULL || opts->is_city_db == 0)
             geo->city = strdup("*");
-        else 
+        else
             geo->city = strdup(rec->city);
 
         if (rec->country_code == NULL)
@@ -357,17 +357,17 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     }
 
     if (opts->debug)
-        pam_syslog(pamh, LOG_DEBUG, "GeoIP record for %s: %s,%s", 
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP record for %s: %s,%s",
                                 rhost, geo->country, geo->city);
 
     if (opts->debug && strcmp(geo->country, "UNKNOWN") != 0 && opts->is_city_db)
-        pam_syslog(pamh, LOG_DEBUG, "GeoIP coordinates for %s: %f,%f", 
+        pam_syslog(pamh, LOG_DEBUG, "GeoIP coordinates for %s: %f,%f",
                                     rhost, geo->latitude, geo->longitude);
 
     if ((fh = fopen(opts->service_file, "r")) != NULL) {
         opts->by_service = 1;
         if (opts->debug)
-            pam_syslog(pamh, LOG_DEBUG, "using services file %s", 
+            pam_syslog(pamh, LOG_DEBUG, "using services file %s",
                                         opts->service_file);
     }
     else {
@@ -388,9 +388,9 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     char location[LINE_LENGTH];
     while (fgets(buf, LINE_LENGTH, fh) != NULL) {
         char *line, *ptr;
-        char domain[LINE_LENGTH], 
+        char domain[LINE_LENGTH],
              service[LINE_LENGTH];
-        
+
         action = opts->action;
         line   = buf;
         /* skip the leading white space */
@@ -413,7 +413,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             action = parse_line_srv(pamh, line, domain, location);
         else
             action = parse_line_sys(pamh, line, domain, service, location);
-        if (action < 0) { /* parsing failed */ 
+        if (action < 0) { /* parsing failed */
             action = opts->action;
             continue;
         }
@@ -422,7 +422,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
             if (!check_service(pamh, service, srv))
                 continue;
         }
- 
+
         if ((strcmp(domain, "*") == 0) || (strcmp(username, domain) == 0)) {
             if (check_location(pamh, opts, location, geo))
                 break;
@@ -433,7 +433,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
                     break;
             }
         }
-    }    
+    }
 
     fclose(fh);
     if (gi) GeoIP_delete(gi);
@@ -460,6 +460,6 @@ pam_sm_acct_mgmt(pam_handle_t *pamh,
     free_opts(opts);
     return action;
 }
-/* 
+/*
  * vim: ts=4 sw=4 expandtab
  */
